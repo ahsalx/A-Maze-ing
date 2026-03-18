@@ -4,47 +4,57 @@ import random
 from collections import deque
 from typing import Optional
 
-
 NORTH: int = 0b0001  # bit 0
 EAST:  int = 0b0010  # bit 1
+EAST: int = 0b0010  # bit 1
 SOUTH: int = 0b0100  # bit 2
-WEST:  int = 0b1000  # bit 3
+WEST: int = 0b1000  # bit 3
 
 OPPOSITE: dict[int, int] = {
     NORTH: SOUTH,
-    EAST:  WEST,
+    EAST: WEST,
     SOUTH: NORTH,
-    WEST:  EAST,
+    WEST: EAST,
 }
 
 DIRECTION_DELTA: dict[int, tuple[int, int]] = {
     NORTH: (0, -1),
-    EAST:  (1,  0),
-    SOUTH: (0,  1),
-    WEST:  (-1, 0),
+    EAST: (1, 0),
+    SOUTH: (0, 1),
+    WEST: (-1, 0),
 }
 
 DIRECTION_LETTER: dict[int, str] = {
     NORTH: "N",
-    EAST:  "E",
+    EAST: "E",
     SOUTH: "S",
-    WEST:  "W",
+    WEST: "W",
 }
 
-_GLYPH_WIDTH:  int = 8
+_GLYPH_WIDTH: int = 8
 _GLYPH_HEIGHT: int = 5
 
 _GLYPH_CELLS: list[tuple[int, int]] = [
     # "4"  (columns 0-2)
-    (0, 0), (0, 1), (0, 2),
+    (0, 0),
+    (0, 1),
+    (0, 2),
     (1, 2),
-    (2, 2), (2, 3), (2, 4),
+    (2, 2),
+    (2, 3),
+    (2, 4),
     # "2"  (columns 4-6)
-    (4, 0), (5, 0), (6, 0),
+    (4, 0),
+    (5, 0),
+    (6, 0),
     (6, 1),
-    (4, 2), (5, 2), (6, 2),
+    (4, 2),
+    (5, 2),
+    (6, 2),
     (4, 3),
-    (4, 4), (5, 4), (6, 4),
+    (4, 4),
+    (5, 4),
+    (6, 4),
 ]
 
 
@@ -86,16 +96,11 @@ class MazeGenerator:
 
     def _init_grid(self) -> None:
         """Allocate grid with all walls closed (0xF per cell)."""
-        self.grid = [
-            [0xF for _ in range(self.width)]
-            for _ in range(self.height)
-        ]
+        self.grid = [[0xF for _ in range(self.width)] for _ in range(self.height)]
 
     def _carve_passages(self) -> None:
         """Carve passages using an iterative DFS (recursive backtracker)."""
-        visited: list[list[bool]] = [
-            [False] * self.width for _ in range(self.height)
-        ]
+        visited: list[list[bool]] = [[False] * self.width for _ in range(self.height)]
         sx, sy = self.entry
         stack: list[tuple[int, int]] = [(sx, sy)]
         visited[sy][sx] = True
@@ -123,11 +128,9 @@ class MazeGenerator:
             if not moved:
                 stack.pop()
 
-    def _open_wall(
-        self, x: int, y: int, nx: int, ny: int, direction: int
-    ) -> None:
+    def _open_wall(self, x: int, y: int, nx: int, ny: int, direction: int) -> None:
         """Remove the wall between (x,y) and (nx,ny) in both cells."""
-        self.grid[y][x]   &= ~direction
+        self.grid[y][x] &= ~direction
         self.grid[ny][nx] &= ~OPPOSITE[direction]
 
     def _embed_42(self) -> None:
@@ -142,7 +145,7 @@ class MazeGenerator:
             )
             return
 
-        ax = (self.width  - _GLYPH_WIDTH)  // 2
+        ax = (self.width - _GLYPH_WIDTH) // 2
         ay = (self.height - _GLYPH_HEIGHT) // 2
         self._42_anchor = (ax, ay)
 
@@ -173,9 +176,8 @@ class MazeGenerator:
             dx, dy = DIRECTION_DELTA[direction]
             nx, ny = x + dx, y + dy
 
-            if (
-                self.grid[y][x] & direction
-                and not self._would_create_wide_area(x, y, nx, ny, direction)
+            if self.grid[y][x] & direction and not self._would_create_wide_area(
+                x, y, nx, ny, direction
             ):
                 self._open_wall(x, y, nx, ny, direction)
                 added += 1
@@ -192,9 +194,12 @@ class MazeGenerator:
 
     def _is_3x3_open(
         self,
-        cx: int, cy: int,
-        ox: int, oy: int,
-        nx: int, ny: int,
+        cx: int,
+        cy: int,
+        ox: int,
+        oy: int,
+        nx: int,
+        ny: int,
         direction: int,
     ) -> bool:
         """Return True if the 3x3 block at (cx,cy) would be fully open."""
@@ -210,15 +215,6 @@ class MazeGenerator:
                 if by < cy + 2 and (walls & SOUTH):
                     return False
         return True
-
-
-
-
-
-
-
-
-
     def cell(self, x: int, y: int) -> int:
         """Return the wall bitmask for cell (x, y)."""
         return self.grid[y][x]
@@ -247,9 +243,35 @@ class MazeGenerator:
     # ------------------------------------------------------------------
 
     def _solve(self) -> None:
-        """Compute shortest path from entry to exit (BFS)."""
-        # TODO: BFS over self.grid; store result in self._solution
-        raise NotImplementedError
+        queue = deque()
+        visited = set()
+
+        sx, sy = self.entry
+        queue.append((sx, sy, []))
+        visited.add((sx, sy))
+
+        while queue:
+            x, y, path = queue.popleft()
+
+            # reached exit
+            if (x, y) == self.exit:
+                self._solution = path
+                return
+
+            for direction, (dx, dy) in DIRECTION_DELTA.items():
+                if self.is_wall(x, y, direction):
+                    continue
+
+                nx = x + dx
+                ny = y + dy
+
+                if (nx, ny) in visited:
+                    continue
+
+                visited.add((nx, ny))
+                queue.append((nx, ny, path + [DIRECTION_LETTER[direction]]))
+
+        self._solution = []
 
     # ------------------------------------------------------------------
     # Dunder helpers
