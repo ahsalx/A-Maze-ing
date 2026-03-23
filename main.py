@@ -7,14 +7,14 @@ This module connects all major parts of the program:
 - launches the interactive terminal UI.
 """
 
-from .config import config, validate_config
-from .display import print_ui
-from .generator import MazeGenerator
-from .writer import write_maze
+from config import config, validate_config
+from display import print_ui, WALL_COLORS, STAMP_COLORS
+from mazegen import MazeGenerator
+from writer import write_maze
+from typing import Any
 
 
-
-def _build_generator(cfg: dict) -> MazeGenerator:
+def _build_generator(cfg: dict[str, Any]) -> MazeGenerator:
     """Create a :class:`MazeGenerator` from validated configuration values.
 
     Args:
@@ -33,7 +33,6 @@ def _build_generator(cfg: dict) -> MazeGenerator:
     )
 
 
-
 def _generate_and_write(gen: MazeGenerator, output_file: str) -> None:
     """Generate a maze and immediately save it to disk.
 
@@ -46,7 +45,6 @@ def _generate_and_write(gen: MazeGenerator, output_file: str) -> None:
     """
     gen.generate()
     write_maze(gen, output_file)
-
 
 
 def main(config_path: str) -> None:
@@ -72,9 +70,10 @@ def main(config_path: str) -> None:
 
     show_solution = False
     color_index = 0
+    stamp_color_index = 0
 
     while True:
-        print_ui(gen, show_solution, color_index)
+        print_ui(gen, show_solution, color_index, stamp_color_index)
         command = input("> ").strip().lower()
 
         if command == "q":
@@ -84,6 +83,9 @@ def main(config_path: str) -> None:
             continue
         if command == "c":
             color_index = (color_index + 1) % 4
+            continue
+        if command == "t":
+            stamp_color_index = (stamp_color_index + 1) % len(STAMP_COLORS)
             continue
         if command == "r":
             try:
@@ -97,4 +99,4 @@ def main(config_path: str) -> None:
                 break
             continue
 
-        print("Unknown command. Use r, s, c or q.")
+        print("Unknown command. Use r, s, c, t or q.")

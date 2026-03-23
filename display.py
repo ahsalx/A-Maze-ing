@@ -8,7 +8,7 @@ terminal view. It is responsible only for presentation:
 - returning the final UI text shown to the player.
 """
 
-from .generator import EAST, SOUTH
+from mazegen.generator import MazeGenerator, EAST, SOUTH
 
 # Terminal escape codes used to style the interface.
 RESET = "\033[0m"
@@ -35,6 +35,14 @@ WALL_COLORS = [
     ("cyan", BG_CYAN),
 ]
 
+# Available stamp color themes that the user can cycle through.
+STAMP_COLORS = [
+    ("white", BG_WHITE),
+    ("magenta", BG_MAGENTA),
+    ("cyan", BG_CYAN),
+    ("green", BG_GREEN),
+]
+
 # Logical cell types used on the temporary drawing canvas.
 EMPTY = "empty"
 WALL = "wall"
@@ -49,19 +57,18 @@ CELL_H = 2
 PIX = "  "
 
 
-
 def clear_screen() -> None:
     """Clear the terminal and move the cursor to the top-left corner."""
     print(CLEAR, end="")
 
 
-
-def _paint(kind: str, wall_bg: str) -> str:
+def _paint(kind: str, wall_bg: str, stamp_bg: str = BG_WHITE) -> str:
     """Convert a logical canvas cell into a colored terminal string.
 
     Args:
         kind: One of the canvas cell types such as ``WALL`` or ``ENTRY``.
         wall_bg: ANSI background color used for walls.
+        stamp_bg: ANSI background color used for the 42 stamp cells.
 
     Returns:
         A short styled string representing one visual block in the terminal.
@@ -69,7 +76,7 @@ def _paint(kind: str, wall_bg: str) -> str:
     if kind == WALL:
         return f"{wall_bg}{PIX}{RESET}"
     if kind == STAMP:
-        return f"{BG_WHITE}{PIX}{RESET}"
+        return f"{stamp_bg}{PIX}{RESET}"
     if kind == ENTRY:
         return f"{BG_MAGENTA}{PIX}{RESET}"
     if kind == EXIT:
@@ -79,8 +86,10 @@ def _paint(kind: str, wall_bg: str) -> str:
     return f"{BG_BLACK}{PIX}{RESET}"
 
 
-
-def _solution_steps(entry: tuple[int, int], path: str) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+def _solution_steps(
+    entry: tuple[int, int],
+    path: str,
+) -> list[tuple[tuple[int, int], tuple[int, int]]]:
     """Turn a solution string into a list of movement segments.
 
     Example:
@@ -114,7 +123,6 @@ def _solution_steps(entry: tuple[int, int], path: str) -> list[tuple[tuple[int, 
     return steps
 
 
-
 def _cell_origin(x: int, y: int) -> tuple[int, int]:
     """Return the top-left canvas position of maze cell ``(x, y)``.
 
@@ -122,7 +130,6 @@ def _cell_origin(x: int, y: int) -> tuple[int, int]:
     expanded into a small rectangle with room for surrounding walls.
     """
     return 1 + x * (CELL_W + 1), 1 + y * (CELL_H + 1)
-
 
 
 def _cell_center(x: int, y: int) -> tuple[int, int]:
@@ -134,8 +141,14 @@ def _cell_center(x: int, y: int) -> tuple[int, int]:
     return ox + CELL_W // 2, oy + CELL_H // 2
 
 
-
-def _fill_rect(canvas: list[list[str]], x0: int, y0: int, w: int, h: int, kind: str) -> None:
+def _fill_rect(
+    canvas: list[list[str]],
+    x0: int,
+    y0: int,
+    w: int,
+    h: int,
+    kind: str,
+) -> None:
     """Fill a rectangular area of the canvas with one logical cell type.
 
     Args:
@@ -151,8 +164,7 @@ def _fill_rect(canvas: list[list[str]], x0: int, y0: int, w: int, h: int, kind: 
             canvas[yy][xx] = kind
 
 
-
-def _build_canvas(gen, show_solution: bool) -> list[list[str]]:
+def _build_canvas(gen: MazeGenerator, show_solution: bool) -> list[list[str]]:
     """Create the full logical drawing canvas for the maze.
 
     The canvas starts completely filled with walls. The function then opens the
@@ -214,7 +226,6 @@ def _build_canvas(gen, show_solution: bool) -> list[list[str]]:
                 cy += dy
             canvas[cy][cx] = DOT
 
-        # Repaint start/end so they remain visible above the solution path.
         ox, oy = _cell_origin(ex, ey)
         _fill_rect(canvas, ox, oy, CELL_W, CELL_H, ENTRY)
         ox, oy = _cell_origin(xx, xy)
@@ -223,51 +234,68 @@ def _build_canvas(gen, show_solution: bool) -> list[list[str]]:
     return canvas
 
 
-
-def render_maze(gen, show_solution: bool = False, color_index: int = 0) -> str:
+def render_maze(
+    gen: MazeGenerator,
+    show_solution: bool = False,
+    color_index: int = 0,
+    stamp_color_index: int = 0,
+) -> str:
     """Render the maze as one complete terminal string.
 
     Args:
         gen: Maze generator containing the maze data.
         show_solution: Whether to display the solution path.
         color_index: Index of the currently selected wall color theme.
+        stamp_color_index: Index of the currently selected stamp color theme.
 
     Returns:
         The full text interface ready to be printed to the terminal.
     """
     color_name, wall_bg = WALL_COLORS[color_index]
+    stamp_name, stamp_bg = STAMP_COLORS[stamp_color_index]
     canvas = _build_canvas(gen, show_solution)
 
     lines: list[str] = []
-    lines.append(f"{FG_BRIGHT_MAGENTA}{BOLD}A-Maze-ing{RESET}  {FG_BRIGHT_BLACK}{gen.width}x{gen.height}{RESET}")
+    lines.append(
+        f"{FG_BRIGHT_MAGENTA}{BOLD}A-Maze-ing{RESET}  "
+        f"{FG_BRIGHT_BLACK}{gen.width}x{gen.height}{RESET}"
+    )
     lines.append("")
 
     for row in canvas:
-        lines.append("".join(_paint(kind, wall_bg) for kind in row))
+        lines.append("".join(_paint(kind, wall_bg, stamp_bg) for kind in row))
 
     lines.append("")
     lines.append(
         f"{FG_BRIGHT_BLACK}legend:{RESET} "
-        f"{_paint(ENTRY, wall_bg)}{RESET}=entry  "
-        f"{_paint(EXIT, wall_bg)}{RESET}=exit  "
-        f"{_paint(DOT, wall_bg)}{RESET}=solution  "
+        f"{_paint(ENTRY, wall_bg, stamp_bg)}{RESET}=entry  "
+        f"{_paint(EXIT, wall_bg, stamp_bg)}{RESET}=exit  "
+        f"{_paint(DOT, wall_bg, stamp_bg)}{RESET}=solution  "
+        f"{_paint(STAMP, wall_bg, stamp_bg)}{RESET}=42  "
     )
     lines.append(
-        f"{FG_BRIGHT_BLACK}wall:{RESET} {color_name}    "
-        f"{FG_BRIGHT_BLACK}commands:{RESET} r regenerate | s solution | c color | q quit"
+        f"{FG_BRIGHT_BLACK}wall:{RESET} {color_name}  "
+        f"{FG_BRIGHT_BLACK}stamp:{RESET} {stamp_name}  "
+        f"{FG_BRIGHT_BLACK}commands:{RESET} "
+        "r regenerate | s solution | c color | t stamp | q quit"
     )
 
     return "\n".join(lines)
 
 
-
-def print_ui(gen, show_solution: bool, color_index: int) -> None:
+def print_ui(
+    gen: MazeGenerator,
+    show_solution: bool,
+    color_index: int,
+    stamp_color_index: int = 0,
+) -> None:
     """Clear the screen and print the current maze interface.
 
     Args:
         gen: Maze generator containing the maze data.
         show_solution: Whether the solution path should be visible.
         color_index: Currently selected wall color theme.
+        stamp_color_index: Currently selected stamp color theme.
     """
     clear_screen()
-    print(render_maze(gen, show_solution, color_index))
+    print(render_maze(gen, show_solution, color_index, stamp_color_index))

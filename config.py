@@ -10,8 +10,10 @@ The goal is to keep all configuration-related logic in one place so the
 rest of the program can safely work with already validated values.
 """
 
+from typing import Any
 
-def config(path: str = "config.txt") -> dict:
+
+def config(path: str = "config.txt") -> dict[str, str]:
     """Read a configuration file and return its raw key/value pairs.
 
     The file is expected to use the format:
@@ -32,32 +34,39 @@ def config(path: str = "config.txt") -> dict:
         ValueError: If a line is malformed, a key is invalid, a key appears
             more than once, a value is empty, or required keys are missing.
     """
-    required_keys = {"WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"}
+    required_keys = {
+        "WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"
+    }
     optional_keys = {"SEED"}
     allowed_keys = required_keys | optional_keys
     parsed = {}
 
-    with open(path, "r", encoding="utf-8") as file:
-        for raw_line in file:
-            line = raw_line.strip()
+    try:
+        with open(path, "r", encoding="utf-8") as file:
+            for raw_line in file:
+                line = raw_line.strip()
 
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                raise ValueError("Invalid line format")
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line or line.count("=") != 1:
+                    raise ValueError(f"Invalid line format | {line}")
 
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip()
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip()
 
-            if key not in allowed_keys:
-                raise ValueError(f"Invalid key: {key}")
-            if key in parsed:
-                raise ValueError(f"Duplicate key: {key}")
-            if not value:
-                raise ValueError(f"{key} cannot be assigned an empty value")
+                if key not in allowed_keys:
+                    raise ValueError(f"Invalid key: {key}")
+                if key in parsed:
+                    raise ValueError(f"Duplicate key: {key}")
+                if not value:
+                    raise ValueError(
+                        f"{key} cannot be assigned an empty value"
+                    )
 
-            parsed[key] = value
+                parsed[key] = value
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Config file not found: '{path}'")
 
     missing = required_keys - parsed.keys()
     if missing:
@@ -66,8 +75,7 @@ def config(path: str = "config.txt") -> dict:
     return parsed
 
 
-
-def validate_config(parsed: dict) -> dict:
+def validate_config(parsed: dict[str, Any]) -> dict[str, Any]:
     """Convert and validate parsed configuration values.
 
     This function turns raw strings into usable Python values:
@@ -128,7 +136,6 @@ def validate_config(parsed: dict) -> dict:
             raise ValueError("SEED must be an integer") from e
 
     return parsed
-
 
 
 def _parse_coordinates(value: str, name: str) -> tuple[int, int]:

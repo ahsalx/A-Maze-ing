@@ -8,8 +8,7 @@ by the project:
 - the solution path as movement letters.
 """
 
-from .generator import MazeGenerator
-
+from mazegen.generator import MazeGenerator
 
 
 def write_maze(gen: MazeGenerator, output_file: str) -> None:
@@ -44,4 +43,6 @@ def write_maze(gen: MazeGenerator, output_file: str) -> None:
 
             file.write(gen.solution_path_str() + "\n")
     except OSError as e:
-        raise OSError(f"Could not write output file '{output_file}': {e}") from e
+        raise OSError(
+            f"Could not write output file '{output_file}': {e}"
+        ) from e

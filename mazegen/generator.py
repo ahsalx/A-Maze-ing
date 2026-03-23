@@ -44,7 +44,7 @@ DIRECTION_LETTER = {
 }
 
 # Dimensions of the embedded "42" glyph inside the maze.
-_GLYPH_WIDTH = 8
+_GLYPH_WIDTH = 7
 _GLYPH_HEIGHT = 5
 
 # Coordinates of all blocked cells that form the 42 pattern.
@@ -98,13 +98,45 @@ class MazeGenerator:
             seed: Optional seed used to make random generation reproducible.
             perfect: If ``True``, keep the maze perfect. If ``False``, open
                 extra passages after generation to create loops.
+
+        Raises:
+            TypeError: If width/height/entry/exit/perfect have wrong types.
+            ValueError: If dimensions are not positive, coordinates are out of
+                bounds, or entry and exit are the same cell.
         """
+        if not isinstance(width, int) or not isinstance(height, int):
+            raise TypeError("width and height must be integers")
+        if width <= 0 or height <= 0:
+            raise ValueError("width and height must be positive integers")
+        if not isinstance(entry, tuple) or len(entry) != 2:
+            raise TypeError("entry must be a tuple of (x, y)")
+        if (
+            exit is not None
+            and (not isinstance(exit, tuple) or len(exit) != 2)
+        ):
+            raise TypeError("exit must be a tuple of (x, y)")
+        if not isinstance(perfect, bool):
+            raise TypeError("perfect must be a boolean")
+        if seed is not None and not isinstance(seed, int):
+            raise TypeError("seed must be an integer or None")
+
         self.width = width
         self.height = height
         self.entry = entry
         self.exit = exit if exit else (width - 1, height - 1)
         self.seed = seed
         self.perfect = perfect
+
+        ex, ey = self.entry
+        if not (0 <= ex < width and 0 <= ey < height):
+            raise ValueError("entry is out of bounds")
+
+        ox, oy = self.exit
+        if not (0 <= ox < width and 0 <= oy < height):
+            raise ValueError("exit is out of bounds")
+
+        if self.entry == self.exit:
+            raise ValueError("entry and exit must be different")
 
         self.grid: list[list[int]] = []
         self._solution: list[str] = []
@@ -133,7 +165,9 @@ class MazeGenerator:
             self._set_stamp42()
 
             if self.entry in self.stamp42 or self.exit in self.stamp42:
-                raise ValueError("Entry or exit cannot be inside the 42 pattern")
+                raise ValueError(
+                    "Entry or exit cannot be inside the 42 pattern"
+                )
 
             self._carve_passages()
 
@@ -147,7 +181,9 @@ class MazeGenerator:
             if self._solution:
                 return
 
-        raise RuntimeError("Failed to generate a valid maze after multiple attempts")
+        raise RuntimeError(
+            "Failed to generate a valid maze after multiple attempts"
+        )
 
     def _init_grid(self) -> None:
         """Create a fresh grid where every cell starts fully closed.
@@ -158,7 +194,10 @@ class MazeGenerator:
         - South bit set
         - West bit set
         """
-        self.grid = [[0xF for _ in range(self.width)] for _ in range(self.height)]
+        self.grid = [
+            [0xF for _ in range(self.width)]
+            for _ in range(self.height)
+        ]
 
     def _set_stamp42(self) -> None:
         """Place the 42 pattern in the center of the maze when possible.
@@ -224,7 +263,14 @@ class MazeGenerator:
             if not moved:
                 stack.pop()
 
-    def _open_wall(self, x: int, y: int, nx: int, ny: int, direction: int) -> None:
+    def _open_wall(
+        self,
+        x: int,
+        y: int,
+        nx: int,
+        ny: int,
+        direction: int,
+    ) -> None:
         """Open the wall between a cell and one of its neighbors.
 
         The wall is removed from both cells so the maze stays consistent.
@@ -246,7 +292,7 @@ class MazeGenerator:
         shortest path in number of moves.
         The solution is stored as direction letters in ``self._solution``.
         """
-        queue = deque()
+        queue: deque[tuple[int, int, list[str]]] = deque()
         visited = set()
 
         sx, sy = self.entry
@@ -340,10 +386,16 @@ class MazeGenerator:
         for y in range(ty, ty + 3):
             for x in range(tx, tx + 3):
                 if x + 1 <= tx + 2:
-                    if (self.grid[y][x] & EAST) or (self.grid[y][x + 1] & WEST):
+                    if (
+                        (self.grid[y][x] & EAST)
+                        or (self.grid[y][x + 1] & WEST)
+                    ):
                         return False
                 if y + 1 <= ty + 2:
-                    if (self.grid[y][x] & SOUTH) or (self.grid[y + 1][x] & NORTH):
+                    if (
+                        (self.grid[y][x] & SOUTH)
+                        or (self.grid[y + 1][x] & NORTH)
+                    ):
                         return False
         return True
 

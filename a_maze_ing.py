@@ -9,7 +9,7 @@ argument to the real ``main`` function inside the package.
 """
 
 import sys
-from mazegen.main import main
+from main import main
 
 
 if __name__ == "__main__":

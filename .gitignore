@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Type checking
+.mypy_cache/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+*.whl
+*.tar.gz
+!mazegen-*.tar.gz
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Maze output files
+*.txt
+!config.txt
+
+# OS
+.DS_Store
